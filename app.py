@@ -22,7 +22,7 @@ if st.button("Random Image"):
         final_url = resp.url  # resolved image URL after redirect
 
         # Display
-        st.image(BytesIO(image_bytes), caption="Random 800×800 image", use_container_width=True)
+        st.image(BytesIO(image_bytes), caption="❤️😀🥰😍", use_container_width=True)
         #st.markdown(f"**Final image URL:** {final_url}")
 
     except requests.RequestException as e:
@@ -30,5 +30,6 @@ if st.button("Random Image"):
 
 st.markdown("---")
 st.caption(" ❤️ Thanku for using ❤️ ")
+
 
 
