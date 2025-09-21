@@ -160,4 +160,5 @@ elif mode == "Decrypt (reveal message)":
                 st.text_area("Traceback", tb, height=300)
 
 st.markdown("---")
-st.caption("Notes: uses simple LSB; keep messages reasonably short. Always use PNG for stego images. This implementation avoids stegano and OpenCV.")
+st.caption("Thank u ")
+
