@@ -6,7 +6,7 @@ from io import BytesIO
 st.set_page_config(page_title="Random Image Generator", layout="centered")
 
 st.title(" 🖼️ Random Image Generator 🖼️")
-st.write("Click the button to fetch a random 800×800 image from Picsum.")
+#st.write("Click the button to fetch a random 800×800 image from Picsum.")
 
 WIDTH, HEIGHT = 800, 800  # fixed size
 
@@ -30,3 +30,4 @@ if st.button("Random Image"):
 
 st.markdown("---")
 st.caption(" ❤️ Thanku for using ❤️ ")
+
