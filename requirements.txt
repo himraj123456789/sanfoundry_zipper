@@ -1,4 +1,5 @@
 streamlit>=1.37.0
-stegano>=0.11.2
+stegano
 Pillow>=9.0.0
 opencv-python-headless>=4.7.0
+
