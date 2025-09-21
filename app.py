@@ -1,35 +1,83 @@
 # app.py
-import requests
 import streamlit as st
-from io import BytesIO
+from stegano import lsb
+import io
+from PIL import Image
+import tempfile
 
-st.set_page_config(page_title="Random Image Generator", layout="centered")
+st.set_page_config(page_title="Image Steganography (Encrypt / Decrypt)", layout="centered")
 
-st.title(" 🖼️ Random Image Generator 🖼️")
-#st.write("Click the button to fetch a random 800×800 image from Picsum.")
+st.title("Image Steganography — Encrypt (hide) / Decrypt (reveal)")
 
-WIDTH, HEIGHT = 800, 800  # fixed size
+# UI: choose mode
+mode = st.radio("Choose mode", ("Encrypt (hide message)", "Decrypt (reveal message)"))
 
-if st.button("Random Image"):
-    url = f"https://picsum.photos/{WIDTH}/{HEIGHT}"
-    try:
-        # Request the image (Picsum redirects to the final image)
-        resp = requests.get(url, stream=True, timeout=15)
-        resp.raise_for_status()
+if mode.startswith("Encrypt"):
+    st.subheader("Encrypt / Hide a message into an image")
 
-        # Read bytes
-        image_bytes = resp.content
-        final_url = resp.url  # resolved image URL after redirect
+    uploaded = st.file_uploader("Upload cover image (PNG recommended)", type=["png", "jpg", "jpeg"])
+    message = st.text_area("Message to hide", height=120)
+    if st.button("Encrypt & Generate stego image"):
+        if not uploaded:
+            st.error("Please upload a cover image (PNG recommended).")
+        elif not message:
+            st.error("Please enter a message to hide.")
+        else:
+            try:
+                # Read uploaded file as PIL image
+                pil_img = Image.open(uploaded).convert("RGBA")
 
-        # Display
-        st.image(BytesIO(image_bytes), caption="❤️😀🥰😍", use_container_width=True)
-        #st.markdown(f"**Final image URL:** {final_url}")
+                # Save to temporary PNG (stegano expects a file path)
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpf:
+                    pil_img.save(tmpf.name, format="PNG")
+                    tmp_path = tmpf.name
 
-    except requests.RequestException as e:
-        st.error(f"Failed to fetch image: {e}")
+                # Hide message
+                secret_img = lsb.hide(tmp_path, message)
+
+                # Save to buffer
+                buf = io.BytesIO()
+                secret_img.save(buf, format="PNG")
+                buf.seek(0)
+
+                st.success("✅ Stego image generated successfully.")
+                st.image(buf.getvalue(), caption="Generated stego image (preview)", use_container_width=True)
+
+                # Download button
+                st.download_button(
+                    label="Download stego image (PNG)",
+                    data=buf.getvalue(),
+                    file_name="stego.png",
+                    mime="image/png"
+                )
+
+            except Exception as e:
+                st.error(f"Failed to hide message: {e}")
+
+elif mode.startswith("Decrypt"):
+    st.subheader("Decrypt / Reveal a message from a stego image")
+
+    uploaded = st.file_uploader("Upload stego image (the image with a hidden message)", type=["png", "jpg", "jpeg"])
+    if st.button("Decrypt / Reveal message"):
+        if not uploaded:
+            st.error("Please upload the stego image.")
+        else:
+            try:
+                # Open uploaded as PNG to preserve LSBs
+                pil = Image.open(uploaded).convert("RGBA")
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpf:
+                    pil.save(tmpf.name, format="PNG")
+                    tmp_path = tmpf.name
+
+                revealed = lsb.reveal(tmp_path)
+                if revealed is None:
+                    st.error("No hidden message detected in image.")
+                else:
+                    st.success("🔓 Revealed message:")
+                    st.code(revealed)
+
+            except Exception as e:
+                st.error(f"Failed to reveal message: {e}")
 
 st.markdown("---")
-st.caption(" ❤️ Thanku for using ❤️ ")
-
-
-
+st.caption( " Thank u for using ")
