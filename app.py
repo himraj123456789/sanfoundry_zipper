@@ -55,7 +55,7 @@ with col1:
     m1 = st.selectbox("Matrix 1", ["U", "VT", "Sigma"], key="m1")
 
 with col2:
-    m2 = st.selectbox("Matrix 2", ["U", "Sigma", "VT"], key="m2")
+    m2 = st.selectbox("Matrix 2", ["VT", "Sigma", "U"], key="m2")
 
 with col3:
     m3 = st.selectbox("Matrix 3", ["U", "VT", "Sigma"], key="m3")
@@ -81,4 +81,5 @@ if st.button("▶️ Multiply"):
             st.subheader("Reconstructed Image")
             st.image(random_image((h, w)), clamp=True)
             st.warning("Wrong order → Random noise shown")
+
 
