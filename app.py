@@ -6,7 +6,7 @@ import os
 st.title("🎮 SVD MATRIX ORDER GAME")
 
 # --------- Load Image ----------
-IMAGE_PATH = "pic.png"
+IMAGE_PATH = "pic.jpeg"
 
 if not os.path.exists(IMAGE_PATH):
     st.error("❌ pic.png not found in folder")
@@ -72,3 +72,4 @@ if st.button("▶️ Multiply"):
         st.subheader("Reconstructed Image")
         st.image(random_image((h, w)), clamp=True)
         st.warning("Wrong order → Random noise shown")
+
