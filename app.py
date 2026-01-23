@@ -18,12 +18,19 @@ if img is None:
     st.error("❌ pic.png not readable")
     st.stop()
 
+# 🔥 Resize for speed (very important for cloud)
+img = cv2.resize(img, (256, 256))
+
 img = img.astype(np.float32)
 h, w = img.shape
 
-# --------- SVD ----------
-U, S, VT = np.linalg.svd(img, full_matrices=False)
-Sigma = np.diag(S)
+# --------- CACHE SVD (KEY OPTIMIZATION) ----------
+@st.cache_resource
+def compute_svd(image):
+    U, S, VT = np.linalg.svd(image, full_matrices=False)
+    return U, np.diag(S), VT
+
+U, Sigma, VT = compute_svd(img)
 
 matrices = {
     "U": U,
@@ -55,21 +62,21 @@ with col3:
 # --------- Action ----------
 if st.button("▶️ Multiply"):
 
-    try:
-        A = matrices[m1]
-        B = matrices[m2]
-        C = matrices[m3]
+    with st.spinner("Computing matrix multiplication..."):
+        try:
+            A = matrices[m1]
+            B = matrices[m2]
+            C = matrices[m3]
 
-        result = A @ B @ C
-        output_img = normalize(result)
-        title = f"{m1} × {m2} × {m3}"
+            result = A @ B @ C
+            output_img = normalize(result)
+            title = f"{m1} × {m2} × {m3}"
 
-        st.subheader("Reconstructed Image")
-        st.image(output_img, clamp=True)
-        st.success(f"Order used: {title}")
+            st.subheader("Reconstructed Image")
+            st.image(output_img, clamp=True)
+            st.success(f"Order used: {title}")
 
-    except:
-        st.subheader("Reconstructed Image")
-        st.image(random_image((h, w)), clamp=True)
-        st.warning("Wrong order → Random noise shown")
-
+        except:
+            st.subheader("Reconstructed Image")
+            st.image(random_image((h, w)), clamp=True)
+            st.warning("Wrong order → Random noise shown")
