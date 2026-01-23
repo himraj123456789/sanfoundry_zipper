@@ -1,3 +1,4 @@
+
 import streamlit as st
 import cv2
 import numpy as np
@@ -51,13 +52,13 @@ st.subheader("Select multiplication order")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    m1 = st.selectbox("Matrix 1", ["U", "Sigma", "VT"], key="m1")
+    m1 = st.selectbox("Matrix 1", ["U", "VT", "Sigma"], key="m1")
 
 with col2:
-    m2 = st.selectbox("Matrix 2", ["U", "Sigma", "VT"], key="m2")
+    m2 = st.selectbox("Matrix 2", ["U", "VT", "Sigma"], key="m2")
 
 with col3:
-    m3 = st.selectbox("Matrix 3", ["U", "Sigma", "VT"], key="m3")
+    m3 = st.selectbox("Matrix 3", ["U", "VT", "Sigma"], key="m3")
 
 # --------- Action ----------
 if st.button("▶️ Multiply"):
