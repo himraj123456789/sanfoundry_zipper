@@ -1,164 +1,74 @@
 import streamlit as st
-from PIL import Image
-import io
-import tempfile
-import traceback
+import cv2
+import numpy as np
+import os
 
-st.set_page_config(page_title="Image Steganography (no stegano)", layout="centered")
-st.title("Image Steganography — Encrypt / Decrypt ")
+st.title("🎮 SVD MATRIX ORDER GAME")
 
+# --------- Load Image ----------
+IMAGE_PATH = "pic.png"
 
-# ---- LSB encode/decode (pure Pillow) ----
-def _int_to_bits(n: int, bits: int):
-    return [(n >> (bits - 1 - i)) & 1 for i in range(bits)]
+if not os.path.exists(IMAGE_PATH):
+    st.error("❌ pic.png not found in folder")
+    st.stop()
 
-def _bits_to_int(bits):
-    n = 0
-    for b in bits:
-        n = (n << 1) | (b & 1)
-    return n
+img = cv2.imread(IMAGE_PATH, cv2.IMREAD_GRAYSCALE)
 
-def _data_to_bits(data: bytes):
-    for byte in data:
-        for i in range(8):
-            yield (byte >> (7 - i)) & 1
+if img is None:
+    st.error("❌ pic.png not readable")
+    st.stop()
 
-def lsb_hide(pil_img: Image.Image, message: str) -> Image.Image:
-    """
-    Hide message in a copy of pil_img, return new PIL image (RGBA).
-    Stores 32-bit message length (bytes) then message bytes.
-    """
-    img = pil_img.convert("RGBA")
-    pixels = list(img.getdata())
-    msg_bytes = message.encode("utf-8")
-    msg_len = len(msg_bytes)
+img = img.astype(np.float32)
+h, w = img.shape
 
-    capacity_bits = len(pixels) * 3  # using R,G,B LSBs
-    needed_bits = 32 + msg_len * 8
-    if needed_bits > capacity_bits:
-        raise ValueError(f"Message too large for image capacity. Capacity bits={capacity_bits}, needed_bits={needed_bits}")
+# --------- SVD ----------
+U, S, VT = np.linalg.svd(img, full_matrices=False)
+Sigma = np.diag(S)
 
-    length_bits = _int_to_bits(msg_len, 32)
-    message_bits = list(_data_to_bits(msg_bytes))
-    all_bits = iter(length_bits + message_bits)
+matrices = {
+    "U": U,
+    "Sigma": Sigma,
+    "VT": VT
+}
 
-    new_pixels = []
-    for px in pixels:
-        r, g, b, a = px
-        new_rgb = []
-        for color in (r, g, b):
-            try:
-                bit = next(all_bits)
-                color = (color & ~1) | bit
-            except StopIteration:
-                # no more bits to write; leave remaining colors unchanged
-                pass
-            new_rgb.append(color)
-        new_pixels.append((new_rgb[0], new_rgb[1], new_rgb[2], a))
+# --------- Helpers ----------
+def normalize(mat):
+    return cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-    out = Image.new(img.mode, img.size)
-    out.putdata(new_pixels)
-    return out
+def random_image(shape):
+    return np.random.randint(0, 256, shape).astype(np.uint8)
 
-def lsb_reveal(pil_img: Image.Image) -> str | None:
-    """
-    Reveal hidden message (returns string) or None if not present/incomplete.
-    """
-    img = pil_img.convert("RGBA")
-    pixels = list(img.getdata())
-    all_lsbs = []
-    for (r, g, b, a) in pixels:
-        all_lsbs.extend([r & 1, g & 1, b & 1])
+# --------- Dropdown Menus ----------
+st.subheader("Select multiplication order")
 
-    if len(all_lsbs) < 32:
-        return None
-    length_bits = all_lsbs[:32]
-    msg_len = _bits_to_int(length_bits)
-    total_message_bits = msg_len * 8
-    if len(all_lsbs) < 32 + total_message_bits:
-        return None  # truncated / no message
-    message_bits = all_lsbs[32:32 + total_message_bits]
+col1, col2, col3 = st.columns(3)
 
-    msg_bytes = bytearray()
-    for i in range(0, len(message_bits), 8):
-        byte_bits = message_bits[i:i+8]
-        val = _bits_to_int(byte_bits)
-        msg_bytes.append(val)
+with col1:
+    m1 = st.selectbox("Matrix 1", ["U", "Sigma", "VT"], key="m1")
+
+with col2:
+    m2 = st.selectbox("Matrix 2", ["U", "Sigma", "VT"], key="m2")
+
+with col3:
+    m3 = st.selectbox("Matrix 3", ["U", "Sigma", "VT"], key="m3")
+
+# --------- Action ----------
+if st.button("▶️ Multiply"):
 
     try:
-        return msg_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
+        A = matrices[m1]
+        B = matrices[m2]
+        C = matrices[m3]
 
-# ---- UI ----
-mode = st.radio("Mode", ("Encrypt (hide message)", "Decrypt (reveal message)"))
+        result = A @ B @ C
+        output_img = normalize(result)
+        title = f"{m1} × {m2} × {m3}"
 
-if mode == "Encrypt (hide message)":
-    st.subheader("Encrypt / Hide a message into an image")
-    uploaded = st.file_uploader("Upload cover image ", type=["png", "jpg", "jpeg"])
-    message = st.text_area("Message to hide", height=160)
-    if st.button("Encrypt & Generate stego image"):
-        if not uploaded:
-            st.error("Please upload a cover image (PNG recommended).")
-        elif not message:
-            st.error("Please enter a message to hide.")
-        else:
-            try:
-                pil = Image.open(uploaded).convert("RGBA")
+        st.subheader("Reconstructed Image")
+        st.image(output_img, clamp=True)
+        st.success(f"Order used: {title}")
 
-                # optional: downscale very large images to avoid memory issues
-                max_side = 1600
-                if max(pil.size) > max_side:
-                    pil.thumbnail((max_side, max_side))
-
-                stego = lsb_hide(pil, message)
-
-                buf = io.BytesIO()
-                stego.save(buf, format="PNG")
-                buf.seek(0)
-
-                st.success("✅ Stego image generated.")
-                st.image(buf.getvalue(), caption="Stego image preview", use_container_width=True)
-
-                st.download_button(
-                    label="Download stego image (PNG)",
-                    data=buf.getvalue(),
-                    file_name="stego.png",
-                    mime="image/png"
-                )
-
-            except Exception as e:
-                tb = traceback.format_exc()
-                st.error(f"Failed to create stego image: {e}")
-                st.text_area("Traceback", tb, height=300)
-
-elif mode == "Decrypt (reveal message)":
-    st.subheader("Decrypt / Reveal a message from a stego image")
-    uploaded = st.file_uploader("Upload stego image (PNG containing hidden message)", type=["png", "jpg", "jpeg"])
-    if st.button("Decrypt / Reveal message"):
-        if not uploaded:
-            st.error("Please upload the stego image.")
-        else:
-            try:
-                pil = Image.open(uploaded).convert("RGBA")
-                # Save as PNG in-memory to preserve bits, then reveal
-                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpf:
-                    pil.save(tmpf.name, format="PNG")
-                    tmp_path = tmpf.name
-                # Re-open from disk to mimic consistent reading
-                pil2 = Image.open(tmp_path).convert("RGBA")
-                revealed = lsb_reveal(pil2)
-                if revealed is None:
-                    st.error("No hidden message found or message corrupted (maybe image was saved as JPG).")
-                else:
-                    st.success("🔓 Revealed message:")
-                    st.code(revealed)
-
-            except Exception as e:
-                tb = traceback.format_exc()
-                st.error(f"Failed to reveal message: {e}")
-                st.text_area("Traceback", tb, height=300)
-
-st.markdown("---")
-st.caption("Thank u ")
-
+    except:
+        st.subheader("Reconstructed Image")
+        st.image(random_image((h, w)), clamp=True)
+        st.warning("Wrong order → Random noise shown")
