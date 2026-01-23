@@ -52,7 +52,7 @@ st.subheader("Select multiplication order")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    m1 = st.selectbox("Matrix 1", ["U", "VT", "Sigma"], key="m1")
+    m1 = st.selectbox("Matrix 1", ["Sigma", "U", "VT"], key="m1")
 
 with col2:
     m2 = st.selectbox("Matrix 2", ["VT", "Sigma", "U"], key="m2")
@@ -81,5 +81,6 @@ if st.button("▶️ Multiply"):
             st.subheader("Reconstructed Image")
             st.image(random_image((h, w)), clamp=True)
             st.warning("Wrong order → Random noise shown")
+
 
 
